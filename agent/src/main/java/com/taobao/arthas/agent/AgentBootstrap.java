@@ -5,6 +5,7 @@ import java.io.*;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.util.jar.JarFile;
 
 /**
@@ -34,10 +35,23 @@ public class AgentBootstrap {
     private static PrintStream ps = System.err;
     static {
         try {
-            File log = new File(System.getProperty("user.home") + File.separator + "logs" + File.separator
-                    + ".arthas" + File.separator + "arthas.log");
+            File arthasLogDir = new File(System.getProperty("user.home") + File.separator + "logs" + File.separator
+                    + "arthas" + File.separator);
+            if (!arthasLogDir.exists()) {
+                arthasLogDir.mkdirs();
+            }
+            if (!arthasLogDir.exists()) {
+                // #572
+                arthasLogDir = new File(System.getProperty("java.io.tmpdir") + File.separator + "logs" + File.separator
+                        + "arthas" + File.separator);
+                if (!arthasLogDir.exists()) {
+                    arthasLogDir.mkdirs();
+                }
+            }
+
+            File log = new File(arthasLogDir, "arthas.log");
+
             if (!log.exists()) {
-                log.getParentFile().mkdir();
                 log.createNewFile();
             }
             ps = new PrintStream(new FileOutputStream(log, true));
@@ -85,20 +99,21 @@ public class AgentBootstrap {
                 String.class, String.class, Object.class, Object[].class);
         Method onReturn = adviceWeaverClass.getMethod(ON_RETURN, Object.class);
         Method onThrows = adviceWeaverClass.getMethod(ON_THROWS, Throwable.class);
-        Method beforeInvoke = adviceWeaverClass.getMethod(BEFORE_INVOKE, int.class, String.class, String.class, String.class);
-        Method afterInvoke = adviceWeaverClass.getMethod(AFTER_INVOKE, int.class, String.class, String.class, String.class);
-        Method throwInvoke = adviceWeaverClass.getMethod(THROW_INVOKE, int.class, String.class, String.class, String.class);
+        Method beforeInvoke = adviceWeaverClass.getMethod(BEFORE_INVOKE, int.class, String.class, String.class, String.class, int.class);
+        Method afterInvoke = adviceWeaverClass.getMethod(AFTER_INVOKE, int.class, String.class, String.class, String.class, int.class);
+        Method throwInvoke = adviceWeaverClass.getMethod(THROW_INVOKE, int.class, String.class, String.class, String.class, int.class);
         Method reset = AgentBootstrap.class.getMethod(RESET);
         Spy.initForAgentLauncher(classLoader, onBefore, onReturn, onThrows, beforeInvoke, afterInvoke, throwInvoke, reset);
     }
 
-    private static synchronized void main(final String args, final Instrumentation inst) {
+    private static synchronized void main(String args, final Instrumentation inst) {
         try {
             ps.println("Arthas server agent start...");
             // 传递的args参数分两个部分:agentJar路径和agentArgs, 分别是Agent的JAR包路径和期望传递到服务端的参数
+            args = decodeArg(args);
             int index = args.indexOf(';');
             String agentJar = args.substring(0, index);
-            final String agentArgs = args.substring(index, args.length());
+            final String agentArgs = args.substring(index);
 
             File agentJarFile = new File(agentJar);
             if (!agentJarFile.exists()) {
@@ -146,6 +161,13 @@ public class AgentBootstrap {
     }
 
     private static void bind(Instrumentation inst, ClassLoader agentLoader, String args) throws Throwable {
+        /**
+         * <pre>
+         * Configure configure = Configure.toConfigure(args);
+         * int javaPid = configure.getJavaPid();
+         * ArthasBootstrap bootstrap = ArthasBootstrap.getInstance(javaPid, inst);
+         * </pre>
+         */
         Class<?> classOfConfigure = agentLoader.loadClass(ARTHAS_CONFIGURE);
         Object configure = classOfConfigure.getMethod(TO_CONFIGURE, String.class).invoke(null, args);
         int javaPid = (Integer) classOfConfigure.getMethod(GET_JAVA_PID).invoke(configure);
@@ -164,5 +186,13 @@ public class AgentBootstrap {
             }
         }
         ps.println("Arthas server already bind.");
+    }
+
+    private static String decodeArg(String arg) {
+        try {
+            return URLDecoder.decode(arg, "utf-8");
+        } catch (UnsupportedEncodingException e) {
+            return arg;
+        }
     }
 }

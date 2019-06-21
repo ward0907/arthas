@@ -1,15 +1,15 @@
 All Commands 
 =============
 
-
-
 * [dashboard](dashboard.md)
 * [thread](thread.md)
 * [jvm](jvm.md)
 * [sysprop](sysprop.md)
+* [sysenv](sysenv.md)
+* [mbean](mbean.md)
 * [getstatic](getstatic.md)
 
-
+* [ognl](ognl.md)
 
 * [sc](sc.md)
 * [sm](sm.md)
@@ -17,6 +17,7 @@ All Commands
 
 * [jad](jad.md)
 * [classloader](classloader.md)
+* [mc](mc.md)
 * [redefine](redefine.md)
 
 * [monitor](monitor.md)
@@ -25,19 +26,22 @@ All Commands
 * [stack](stack.md)
 * [tt](tt.md)
 
+* [cat](cat.md)
+* [pwd](pwd.md)
 * [options](options.md)
 
 
-### Basic Commands
+### Basic Arthas Commands
 
-* help - check the assistant info for the command
-* cls - clear out the current screen area
-* session - check the current session profile
-* [reset](reset.md) - clear the injected code from the classes (B.T.W when Arthas server closed, all the injected will also be cleared)
-* version - the version of the working Arthas
+* help - examine help information
+* cls - clear out the screen
+* session - examine the current session
+* [reset](reset.md) - reset enhanced classes. All enhanced classes will be reset to their original states. When Arthas server closes, all these enhanced classes will be reset too
+* version - print out Arthas's version
+* history - view command history
 * quit - exit the current Arthas client without affecting other clients
-* shutdown - terminate the Arthas server and all clients
-* [keymap](keymap.md) - shortcuts for Arthas and also you can define your own
+* shutdown - terminate the Arthas server, all the Arthas clients connecting to this server will be disconnected
+* [keymap](keymap.md) - list all Arthas keyboard shortcuts and shortcut customizations.
 
 
 

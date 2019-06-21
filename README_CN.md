@@ -4,6 +4,13 @@
 
 ![arthas](site/src/site/sphinx/arthas.png)
 
+[![Build Status](https://travis-ci.org/alibaba/arthas.svg?branch=master)](https://travis-ci.org/alibaba/arthas)
+[![codecov](https://codecov.io/gh/alibaba/arthas/branch/master/graph/badge.svg)](https://codecov.io/gh/alibaba/arthas)
+![maven](https://img.shields.io/maven-central/v/com.taobao.arthas/arthas-packaging.svg)
+![license](https://img.shields.io/github/license/alibaba/arthas.svg)
+[![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/alibaba/arthas.svg)](http://isitmaintained.com/project/alibaba/arthas "Average time to resolve an issue")
+[![Percentage of issues still open](http://isitmaintained.com/badge/open/alibaba/arthas.svg)](http://isitmaintained.com/project/alibaba/arthas "Percentage of issues still open")
+
 English version goes [here](README.md).
 
 `Arthas` 是Alibaba开源的Java诊断工具，深受开发者喜爱。
@@ -17,46 +24,63 @@ English version goes [here](README.md).
 0. 是否有一个全局视角来查看系统的运行状况？
 0. 有什么办法可以监控到JVM的实时运行状态？
 
-`Arthas`采用命令行交互模式，同时提供丰富的 `Tab` 自动补全功能，进一步方便进行问题的定位和诊断。
+`Arthas`支持JDK 6+，支持Linux/Mac/Windows，采用命令行交互模式，同时提供丰富的 `Tab` 自动补全功能，进一步方便进行问题的定位和诊断。
 
 
+### 在线教程(推荐)
 
+* [基础教程](https://alibaba.github.io/arthas/arthas-tutorials?language=cn&id=arthas-basics)
+* [进阶教程](https://alibaba.github.io/arthas/arthas-tutorials?language=cn&id=arthas-advanced)
 
 ### 快速开始
 
-#### Linux/Unix/Mac
+#### 使用`arthas-boot`(推荐)
 
-安装Arthas:
+下载`arthas-boot.jar`，然后用`java -jar`的方式启动：
 
+```bash
+wget https://alibaba.github.io/arthas/arthas-boot.jar
+java -jar arthas-boot.jar
 ```
+
+打印帮助信息：
+
+```bash
+java -jar arthas-boot.jar -h
+```
+
+* 如果下载速度比较慢，可以使用aliyun的镜像：`java -jar arthas-boot.jar --repo-mirror aliyun --use-http`
+
+#### 使用`as.sh`
+
+Arthas 支持在 Linux/Unix/Mac 等平台上一键安装，请复制以下内容，并粘贴到命令行中，敲 `回车` 执行即可：
+
+```bash
 curl -L https://alibaba.github.io/arthas/install.sh | sh
 ```
 
-启动Arthas:
+上述命令会下载启动脚本文件 `as.sh` 到当前目录，你可以放在任何地方或将其加入到 `$PATH` 中。
 
-```
-./as.sh
-```
+直接在shell下面执行`./as.sh`，就会进入交互界面。
 
-#### Windows
-
-1. 点击 [![Arthas](https://img.shields.io/maven-central/v/com.taobao.arthas/arthas-packaging.svg "Arthas")](http://search.maven.org/classic/#search%7Cga%7C1%7Cg%3A%22com.taobao.arthas%22%20AND%20a%3A%22arthas-packaging%22) 下载最新的Arthas `bin.zip`包
-2. 解压缩zip包.
-3. 进入bin目录
-4. 执行以下命令 `as.bat $PID`
-
+也可以执行`./as.sh -h`来获取更多参数信息。
 
 ### 文档
 
-社区正在进行英文版本的翻译工作，如果您有兴趣请在 [这里](https://github.com/alibaba/arthas/issues/51)留言。
-
+* [在线教程(推荐)](https://alibaba.github.io/arthas/arthas-tutorials?language=cn)
 * [用户文档](https://alibaba.github.io/arthas/)
 * [安装](https://alibaba.github.io/arthas/install-detail.html)
 * [快速入门](https://alibaba.github.io/arthas/quick-start.html)
 * [进阶使用](https://alibaba.github.io/arthas/advanced-use.html)
-* [Q&A](https://github.com/alibaba/arthas/issues?utf8=%E2%9C%93&q=label%3Aquestion-answered+)
+* [命令列表](https://alibaba.github.io/arthas/commands.html)
+* [Docker](https://alibaba.github.io/arthas/docker.html)
+* [用户案例](https://github.com/alibaba/arthas/issues?q=label%3Auser-case)
+* [常见问题](https://github.com/alibaba/arthas/issues?utf8=%E2%9C%93&q=label%3Aquestion-answered+)
 * [参与贡献](https://github.com/alibaba/arthas/blob/master/CONTRIBUTING.md)
+* [Release Notes](https://alibaba.github.io/arthas/release-notes.html)
+* [QQ群/钉钉群](https://alibaba.github.io/arthas/contact-us.html)
 
+Gitee文档镜像： https://arthas.gitee.io/
 
 ### 案例展示
 
@@ -136,11 +160,28 @@ public interface Servlet {
 }
 ```
 
+#### mc
+
+Memory Compiler/内存编译器，编译`.java`文件生成`.class`。
+
+```bash
+mc /tmp/Test.java
+```
+
+#### redefine
+
+加载外部的`.class`文件，redefine jvm已加载的类。
+
+```bash
+redefine /tmp/Test.class
+redefine -c 327a647b /tmp/Test.class /tmp/Test\$Inner.class
+```
+
 #### sc
 
 查找JVM中已经加载的类
 
-```
+```bash
 $ sc -d org.springframework.web.context.support.XmlWebApplicationContext
  class-info        org.springframework.web.context.support.XmlWebApplicationContext
  code-source       /Users/xxx/work/test/WEB-INF/lib/spring-web-3.2.11.RELEASE.jar
@@ -176,7 +217,7 @@ $ sc -d org.springframework.web.context.support.XmlWebApplicationContext
 
 查看方法 `test.arthas.TestStack#doGet` 的调用堆栈：
 
-```
+```bash
 $ stack test.arthas.TestStack doGet
 Press Ctrl+C to abort.
 Affect(class-cnt:1 , method-cnt:1) cost in 286 ms.
@@ -209,7 +250,7 @@ ts=2018-09-18 10:11:45;thread_name=http-bio-8080-exec-10;id=d9;is_daemon=true;pr
 
 #### Trace
 
-观察方法执行的时候那个子调用比较慢:
+观察方法执行的时候哪个子调用比较慢:
 
 ![trace](site/src/site/sphinx/_static/trace.png)
 
@@ -217,7 +258,7 @@ ts=2018-09-18 10:11:45;thread_name=http-bio-8080-exec-10;id=d9;is_daemon=true;pr
 
 观察方法 `test.arthas.TestWatch#doGet` 执行的入参，仅当方法抛出异常时才输出。
 
-```
+```bash
 $ watch test.arthas.TestWatch doGet {params[0], throwExp} -e
 Press Ctrl+C to abort.
 Affect(class-cnt:1 , method-cnt:1) cost in 65 ms.
@@ -232,7 +273,7 @@ ts=2018-09-18 10:26:28;result=@ArrayList[
 监控某个特殊方法的调用统计数据，包括总调用次数，平均rt，成功率等信息，每隔5秒输出一次。
 
 
-```
+```bash
 $ monitor -c 5 org.apache.dubbo.demo.provider.DemoServiceImpl sayHello
 Press Ctrl+C to abort.
 Affect(class-cnt:1 , method-cnt:1) cost in 109 ms.
@@ -253,7 +294,7 @@ Affect(class-cnt:1 , method-cnt:1) cost in 109 ms.
 
 记录方法调用信息，支持事后查看方法调用的参数，返回值，抛出的异常等信息，仿佛穿越时空隧道回到调用现场一般。
 
-```
+```bash
 $ tt -t org.apache.dubbo.demo.provider.DemoServiceImpl sayHello
 Press Ctrl+C to abort.
 Affect(class-cnt:1 , method-cnt:1) cost in 75 ms.
@@ -274,7 +315,7 @@ Affect(class-cnt:1 , method-cnt:1) cost in 75 ms.
 
 了解当前系统中有多少类加载器，以及每个加载器加载的类数量，帮助您判断是否有类加载器泄露。
 
-```
+```bash
 $ classloader
  name                                                  numberOfInstances  loadedCountTotal
  BootstrapClassLoader                                  1                  3346
@@ -295,14 +336,87 @@ $ classloader
 
 ![web console](site/src/site/sphinx/_static/web-console-local.png)
 
+
+### Known Users
+
+如果您在使用Arthas，请让我们知道，您的使用对我们非常重要：https://github.com/alibaba/arthas/issues/111 （按登记顺序排列）
+
+![Alibaba](static/alibaba.png)
+![Alipay](static/alipay.png)
+![Aliyun](static/aliyun.png)
+![Taobao](static/taobao.png)
+![Tmall](static/tmall.png)
+![微医](static/weiyi.png)
+![卓越教育](static/zhuoyuejiaoyu.png)
+![狐狸金服](static/hulijingfu.png)
+![三体云](static/santiyun.png)
+![证大文化](static/zhengdawenhua.png)
+![Acmedcare+](static/acmedcare.png)
+![好慷](static/homeking365_log.png)
+![来电科技](static/laidian.png)
+![四格互联](static/sigehulian.png)
+![ICBC](static/icbc.png)
+![陆鹰](static/luying.png)
+![玩友时代](static/wangyoushidai.png)
+![她社区](static/tashequ.png)
+![龙腾出行](static/longtengchuxing.png)
+![foscam](static/foscam.png)
+![二维火](static/2dfire.png)
+![lanxum](static/lanxum_com.png)
+![纳里健康](static/ngarihealth.png)
+![掌门1对1](static/zhangmen.png)
+![offcn](static/offcn.png)
+![sia](static/sia.png)
+![振安资产](static/zhenganzichang.png)
+![菠萝](static/bolo.png)
+![中通快递](static/zto.png)
+![光点科技](static/guangdian.png)
+![广州工程技术职业学院](static/gzvtc.jpg)
+![mstar](static/mstar.png)
+![xwbank](static/xwbank.png)
+![imexue](static/imexue.png)
+![keking](static/keking.png)
+![secoo](static/secoo.jpg)
+![viax](static/viax.png)
+![yanedu](static/yanedu.png)
+![duia](static/duia.png)
+![哈啰出行](static/hellobike.png)
+![hollycrm](static/hollycrm.png)
+![citycloud](static/citycloud.jpg)
+![yidianzixun](static/yidianzixun.png)
+![神州租车](static/zuche.png)
+![天眼查](static/tianyancha.png)
+![商脉云](static/anjianyun.png)
+![三新文化](static/sanxinbook.png)
+![雪球财经](static/xueqiu.png)
+![百安居](static/bthome.png)
+![安心保险](static/95303.png)
+![杭州源诚科技](static/hzyc.png)
+![91moxie](static/91moxie.png)
+![智慧开源](static/wisdom.png)
+![富佳科技](static/fujias.png)
+![鼎尖软件](static/dingjiansoft.png)
+![广通软件](static/broada.png)
+![九鼎瑞信](static/evercreative.jpg)
+![小米有品](static/xiaomiyoupin.png)
+![欧冶云商](static/ouyeel.png)
+
 ### Credit
 
+#### Contributors
 
+感谢所有Contributors!
+
+<a href="https://github.com/alibaba/arthas/graphs/contributors"><img src="https://opencollective.com/arthas/contributors.svg?width=890&button=false" /></a>
+
+#### Projects
 
 * [greys-anatomy](https://github.com/oldmanpushcart/greys-anatomy): Arthas代码基于Greys二次开发而来，非常感谢Greys之前所有的工作，以及Greys原作者对Arthas提出的意见和建议！
 * [termd](https://github.com/termd/termd): Arthas的命令行实现基于termd开发，是一款优秀的命令行程序开发框架，感谢termd提供了优秀的框架。
 * [crash](https://github.com/crashub/crash): Arthas的文本渲染功能基于crash中的文本渲染功能开发，可以从[这里](https://github.com/crashub/crash/tree/1.3.2/shell)看到源码，感谢crash在这方面所做的优秀工作。
 * [cli](https://github.com/eclipse-vertx/vert.x/tree/master/src/main/java/io/vertx/core/cli): Arthas的命令行界面基于vert.x提供的cli库进行开发，感谢vert.x在这方面做的优秀工作。
+* [compiler](https://github.com/skalogs/SkaETL/tree/master/compiler) Arthas里的内存编绎器代码来源
+* [Apache Commons Net](https://commons.apache.org/proper/commons-net/) Arthas里的Telnet Client代码来源
 
 ### 仓库镜像
 

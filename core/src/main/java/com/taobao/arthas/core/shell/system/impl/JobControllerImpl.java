@@ -20,6 +20,7 @@ import com.taobao.arthas.core.util.TokenUtils;
 import io.termd.core.function.Function;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -32,6 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
+ * @author hengyunabc 2019-05-14
  */
 public class JobControllerImpl implements JobController {
 
@@ -149,7 +151,7 @@ public class JobControllerImpl implements JobController {
         return runInBackground;
     }
 
-    private Process createCommandProcess(Command command, ListIterator<CliToken> tokens, int jobId, Term term) {
+    private Process createCommandProcess(Command command, ListIterator<CliToken> tokens, int jobId, Term term) throws IOException {
         List<CliToken> remaining = new ArrayList<CliToken>();
         List<CliToken> pipelineTokens = new ArrayList<CliToken>();
         boolean isPipeline = false;
@@ -169,14 +171,14 @@ public class JobControllerImpl implements JobController {
                     String name = getRedirectFileName(tokens);
                     if (name == null) {
                         // 如果没有指定重定向文件名，那么重定向到以jobid命名的缓存中
-                        name = Constants.PID + File.separator + jobId;
-                        cacheLocation = Constants.CACHE_ROOT + File.separator + name;
+                        name = Constants.CACHE_ROOT + File.separator + Constants.PID + File.separator + jobId;
+                        cacheLocation = name;
 
                         if (getRedirectJobCount() == 8) {
                             throw new IllegalStateException("The amount of async command that saving result to file can't > 8");
                         }
                     }
-                    redirectHandler = new RedirectHandler(name);
+                    redirectHandler = new RedirectHandler(name, ">>".equals(tokenValue));
                     break;
                 }
             }

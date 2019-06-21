@@ -1,25 +1,26 @@
 package com.taobao.arthas.core.command.monitor200;
 
+import com.taobao.arthas.core.advisor.Advice;
 import com.taobao.arthas.core.advisor.AdviceListener;
+import com.taobao.arthas.core.advisor.ArthasMethod;
 import com.taobao.arthas.core.command.Constants;
 import com.taobao.arthas.core.command.express.ExpressException;
 import com.taobao.arthas.core.command.express.ExpressFactory;
-import com.taobao.arthas.core.shell.cli.Completion;
 import com.taobao.arthas.core.shell.command.CommandProcess;
-import com.taobao.arthas.core.advisor.Advice;
-import com.taobao.arthas.core.advisor.ArthasMethod;
 import com.taobao.arthas.core.shell.handlers.command.CommandInterruptHandler;
+import com.taobao.arthas.core.shell.handlers.shell.QExitHandler;
 import com.taobao.arthas.core.util.LogUtil;
 import com.taobao.arthas.core.util.SearchUtils;
 import com.taobao.arthas.core.util.StringUtils;
 import com.taobao.arthas.core.util.affect.RowAffect;
 import com.taobao.arthas.core.util.matcher.Matcher;
 import com.taobao.arthas.core.view.ObjectView;
-import com.taobao.middleware.cli.annotations.Argument;
 import com.taobao.middleware.cli.annotations.Description;
 import com.taobao.middleware.cli.annotations.Name;
 import com.taobao.middleware.cli.annotations.Option;
 import com.taobao.middleware.cli.annotations.Summary;
+import com.taobao.middleware.cli.annotations.Argument;
+import com.taobao.middleware.logger.Logger;
 import com.taobao.text.ui.TableElement;
 import com.taobao.text.util.RenderUtil;
 
@@ -42,10 +43,11 @@ import static java.lang.String.format;
         "  tt -t *StringUtils isEmpty\n" +
         "  tt -t *StringUtils isEmpty params[0].length==1\n" +
         "  tt -l\n" +
-        "  tt -D\n" +
-        "  tt -i 1000 -w params[0]\n" +
-        "  tt -i 1000 -d\n" +
         "  tt -i 1000\n" +
+        "  tt -i 1000 -w params[0]\n" +
+        "  tt -i 1000 -p \n" +
+        "  tt -i 1000 -p --replay-times 3 --replay-interval 3000\n" +
+        "  tt --delete-all\n" +
         Constants.WIKI + Constants.WIKI_HOME + "tt")
 public class TimeTunnelCommand extends EnhancerCommand {
     // 时间隧道(时间碎片的集合)
@@ -75,6 +77,9 @@ public class TimeTunnelCommand extends EnhancerCommand {
     private boolean isDelete = false;
     private boolean isRegEx = false;
     private int numberOfLimit = 100;
+    private int replayTimes = 1;
+    private long replayInterval = 1000L;
+    private static final Logger logger = LogUtil.getArthasLogger();
 
     @Argument(index = 0, argName = "class-pattern", required = false)
     @Description("Path and classname of Pattern Matching")
@@ -106,7 +111,7 @@ public class TimeTunnelCommand extends EnhancerCommand {
         isList = list;
     }
 
-    @Option(shortName = "D", longName = "delete-all", flag = true)
+    @Option(longName = "delete-all", flag = true)
     @Description("Delete all the time fragments")
     public void setDeleteAll(boolean deleteAll) {
         isDeleteAll = deleteAll;
@@ -167,6 +172,20 @@ public class TimeTunnelCommand extends EnhancerCommand {
         this.numberOfLimit = numberOfLimit;
     }
 
+
+    @Option(longName = "replay-times")
+    @Description("execution times when play tt")
+    public void setReplayTimes(int replayTimes) {
+        this.replayTimes = replayTimes;
+    }
+
+    @Option(longName = "replay-interval")
+    @Description("replay interval  for  play tt with option r greater than 1")
+    public void setReplayInterval(int replayInterval) {
+        this.replayInterval = replayInterval;
+    }
+
+
     public boolean isRegEx() {
         return isRegEx;
     }
@@ -187,6 +206,14 @@ public class TimeTunnelCommand extends EnhancerCommand {
         return numberOfLimit;
     }
 
+
+    public int getReplayTimes() {
+        return replayTimes;
+    }
+
+    public long getReplayInterval() {
+        return replayInterval;
+    }
 
     private boolean hasWatchExpress() {
         return !StringUtils.isEmpty(watchExpress);
@@ -242,6 +269,8 @@ public class TimeTunnelCommand extends EnhancerCommand {
 
         // ctrl-C support
         process.interruptHandler(new CommandInterruptHandler(process));
+        // q exit support
+        process.stdinHandler(new QExitHandler(process));
 
         if (isTimeTunnel) {
             enhance(process);
@@ -285,12 +314,6 @@ public class TimeTunnelCommand extends EnhancerCommand {
         return new TimeTunnelAdviceListener(this, process);
     }
 
-    @Override
-    protected boolean completeExpress(Completion completion) {
-        completion.complete(EMPTY);
-        return true;
-    }
-
     // 展示指定记录
     private void processShow(CommandProcess process) {
         RowAffect affect = new RowAffect();
@@ -332,7 +355,7 @@ public class TimeTunnelCommand extends EnhancerCommand {
             }
 
             Advice advice = tf.getAdvice();
-            Object value = ExpressFactory.newExpress(advice).get(watchExpress);
+            Object value = ExpressFactory.threadLocalExpress(advice).get(watchExpress);
             if (isNeedExpand()) {
                 process.write(new ObjectView(value, expand, sizeLimit).draw()).write("\n");
             } else {
@@ -341,7 +364,7 @@ public class TimeTunnelCommand extends EnhancerCommand {
 
             affect.rCnt(1);
         } catch (ExpressException e) {
-            LogUtil.getArthasLogger().warn("tt failed.", e);
+            logger.warn("tt failed.", e);
             process.write(e.getMessage() + ", visit " + LogUtil.LOGGER_FILE + " for more detail\n");
         } finally {
             process.write(affect.toString()).write("\n");
@@ -361,7 +384,7 @@ public class TimeTunnelCommand extends EnhancerCommand {
                 Advice advice = tf.getAdvice();
 
                 // 搜索出匹配的时间片段
-                if ((ExpressFactory.newExpress(advice)).is(searchExpress)) {
+                if ((ExpressFactory.threadLocalExpress(advice)).is(searchExpress)) {
                     matchingTimeSegmentMap.put(index, tf);
                 }
             }
@@ -415,45 +438,58 @@ public class TimeTunnelCommand extends EnhancerCommand {
         process.end();
     }
 
-    // 重放指定记录
+    /**
+     * 重放指定记录
+     */
     private void processPlay(CommandProcess process) {
-        RowAffect affect = new RowAffect();
+        TimeFragment tf = timeFragmentMap.get(index);
+        if (null == tf) {
+            process.write(format("Time fragment[%d] does not exist.", index) + "\n");
+            process.end();
+            return;
+        }
+        Advice advice = tf.getAdvice();
+        String className = advice.getClazz().getName();
+        String methodName = advice.getMethod().getName();
+        String objectAddress = advice.getTarget() == null ? "NULL" : "0x" + toHexString(advice.getTarget().hashCode());
+        ArthasMethod method = advice.getMethod();
+        boolean accessible = advice.getMethod().isAccessible();
         try {
-            TimeFragment tf = timeFragmentMap.get(index);
-            if (null == tf) {
-                process.write(format("Time fragment[%d] does not exist.", index) + "\n");
-                process.write(affect + "\n");
-                process.end();
-                return;
-            }
-
-            Advice advice = tf.getAdvice();
-            String className = advice.getClazz().getName();
-            String methodName = advice.getMethod().getName();
-            String objectAddress = advice.getTarget() == null ? "NULL" : "0x" + toHexString(advice.getTarget().hashCode());
-
-            TableElement table = TimeTunnelTable.createDefaultTable();
-            TimeTunnelTable.drawPlayHeader(className, methodName, objectAddress, index, table);
-            TimeTunnelTable.drawParameters(advice, table, isNeedExpand(), expand);
-
-            ArthasMethod method = advice.getMethod();
-            boolean accessible = advice.getMethod().isAccessible();
-            try {
+            if (!accessible) {
                 method.setAccessible(true);
-                Object returnObj = method.invoke(advice.getTarget(), advice.getParams());
-                TimeTunnelTable.drawPlayResult(table, returnObj, isNeedExpand(), expand, sizeLimit);
-            } catch (Throwable t) {
-                TimeTunnelTable.drawPlayException(table, t, isNeedExpand(), expand);
-            } finally {
-                method.setAccessible(accessible);
             }
+            for (int i = 0; i < getReplayTimes(); i++) {
+                if (i > 0) {
+                    //wait for the next execution
+                    Thread.sleep(getReplayInterval());
+                    if (!process.isRunning()) {
+                        return;
+                    }
+                }
+                long beginTime = System.nanoTime();
+                TableElement table = TimeTunnelTable.createDefaultTable();
+                if (i != 0) {
+                    // empty line separator
+                    process.write("\n");
+                }
+                TimeTunnelTable.drawPlayHeader(className, methodName, objectAddress, index, table);
+                TimeTunnelTable.drawParameters(advice, table, isNeedExpand(), expand);
 
-            process.write(RenderUtil.render(table, process.width()))
-                    .write(format("Time fragment[%d] successfully replayed.", index))
-                    .write("\n");
-            affect.rCnt(1);
-            process.write(affect.toString()).write("\n");
+                try {
+                    Object returnObj = method.invoke(advice.getTarget(), advice.getParams());
+                    double cost = (System.nanoTime() - beginTime) / 1000000.0;
+                    TimeTunnelTable.drawPlayResult(table, returnObj, isNeedExpand(), expand, sizeLimit, cost);
+                } catch (Throwable t) {
+                    TimeTunnelTable.drawPlayException(table, t, isNeedExpand(), expand);
+                }
+                process.write(RenderUtil.render(table, process.width()))
+                        .write(format("Time fragment[%d] successfully replayed %d times.", index, i+1))
+                        .write("\n");
+            }
+        } catch (Throwable t) {
+            logger.warn("tt replay failed.", t);
         } finally {
+            method.setAccessible(accessible);
             process.end();
         }
     }
